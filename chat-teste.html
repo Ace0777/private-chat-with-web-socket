@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Privado Teste</title>
+    <!-- SockJS e STOMP -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+    <h2>Chat Privado Teste</h2>
+
+    <label>Nome do usuário:</label>
+    <input type="text" id="username" placeholder="user">
+    <button onclick="connect()">Conectar</button>
+
+    <hr>
+
+    <label>Para:</label>
+    <input type="text" id="to" placeholder="Destinatário">
+    <input type="text" id="content" placeholder="Mensagem">
+    <button onclick="sendMessage()">Enviar</button>
+
+    <h3>Mensagens:</h3>
+    <div id="messages"></div>
+
+    <script>
+        var stompClient = null;
+        var username = null;
+
+        function connect() {
+            username = document.getElementById('username').value;
+            if (!username) {
+                alert("Digite seu nome!");
+                return;
+            }
+
+            var socket = new SockJS('http://localhost:8080/ws');
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function(frame) {
+                console.log('Conectado: ' + frame);
+                showMessage("Conectado como " + username);
+
+                stompClient.subscribe('/topic/' + username, function(messageOutput) {
+                    var msg = JSON.parse(messageOutput.body);
+                    showMessage(msg.from + " → " + msg.content);
+                });
+            });
+        }
+
+        function sendMessage() {
+            var to = document.getElementById('to').value;
+            var content = document.getElementById('content').value;
+
+            if (!to || !content) {
+                alert("Preencha destinatário e mensagem!");
+                return;
+            }
+
+            stompClient.send("/app/private-message", {}, JSON.stringify({
+                from: username,
+                to: to,
+                content: content
+            }));
+
+            showMessage("Você → " + content);
+
+            document.getElementById('content').value = "";
+        }
+
+        function showMessage(message) {
+            var messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += message + "<br>";
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; 
+        }
+    </script>
+</body>
+</html>
